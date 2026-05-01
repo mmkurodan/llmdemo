@@ -1,8 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:label="llmdemo"
-        android:theme="@android:style/Theme.Material.Light">
+        android:allowBackup="true"
+        android:label="Mini Transformer Visualizer"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
             android:name=".MainActivity"

@@ -24,8 +24,56 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def load_vocab(path: Path) -> list[str]:
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_vocab(path: Path) -> tuple[list[str], dict[str, int], dict[int, str]]:
+    vocab = json.loads(path.read_text(encoding="utf-8"))
+    stoi = {token: index for index, token in enumerate(vocab)}
+    itos = {index: token for index, token in enumerate(vocab)}
+    return vocab, stoi, itos
+
+
+def load_training_corpus(path: Path) -> list[str]:
+    """Load UTF-8 text and skip blank lines so separators can be left in the file."""
+    lines: list[str] = []
+    with path.open("r", encoding="utf-8") as corpus_file:
+        for raw_line in corpus_file:
+            line = raw_line.strip()
+            if line:
+                lines.append(line)
+    if not lines:
+        raise ValueError(f"Training corpus is empty: {path}")
+    return lines
+
+
+def encode(text: str, stoi: dict[str, int]) -> list[int]:
+    """
+    Convert a training string into token IDs.
+
+    The corpus is character-level for normal text, but special tokens such as
+    [BOS] and [EOS] should stay intact so the model can learn greeting patterns
+    that start and stop explicitly.
+    """
+    unk_id = stoi["[UNK]"]
+    multi_char_tokens = sorted((token for token in stoi if len(token) > 1), key=len, reverse=True)
+
+    ids: list[int] = []
+    cursor = 0
+    while cursor < len(text):
+        matched_token = None
+        for token in multi_char_tokens:
+            if text.startswith(token, cursor):
+                matched_token = token
+                break
+
+        if matched_token is not None:
+            ids.append(stoi[matched_token])
+            cursor += len(matched_token)
+            continue
+
+        char = text[cursor]
+        ids.append(stoi.get(char, stoi.get(char.lower(), unk_id)))
+        cursor += 1
+
+    return ids
 
 
 def sinusoidal_positions(length: int, d_model: int, device: torch.device) -> torch.Tensor:
@@ -93,42 +141,42 @@ class MiniTransformer(nn.Module):
         return x @ self.embedding.weight.t()
 
 
-def build_dataset(vocab: list[str], corpus: str, max_seq_len: int) -> tuple[list[int], dict[str, int]]:
-    token_to_id = {token: index for index, token in enumerate(vocab)}
-    unk_id = token_to_id["[UNK]"]
-    filtered = [token_to_id.get(char, unk_id) for char in corpus.lower()]
-    if len(filtered) < max_seq_len + 1:
-        filtered = filtered * ((max_seq_len + 1) // max(1, len(filtered)) + 1)
-    return filtered, token_to_id
-
-
 def train_model(
     model: MiniTransformer,
-    dataset: list[int],
-    bos_id: int,
-    eos_id: int,
+    corpus_lines: list[str],
+    stoi: dict[str, int],
     steps: int,
-    max_seq_len: int,
     lr: float,
 ) -> None:
     if steps <= 0:
         return
 
+    loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     model.train()
 
     for step in range(steps):
-        start = random.randint(0, len(dataset) - max_seq_len - 1)
-        chunk = dataset[start : start + max_seq_len - 1]
-        input_ids = [bos_id] + chunk
-        target_ids = chunk + [eos_id]
+        # ランダムに別の行を引くことで、短いコーパスでも見える並びが毎回少し変わり、
+        # 挨拶パターンを反復して学習しやすくする。
+        line = random.choice(corpus_lines)
+        ids = encode(line, stoi)
+        if len(ids) < 2:
+            raise ValueError(f"Training line must contain at least 2 tokens: {line!r}")
 
-        inputs = torch.tensor([input_ids], dtype=torch.long)
-        targets = torch.tensor([target_ids], dtype=torch.long)
+        # 既存のモデル長を超える行はランダム窓で切り出し、構造を変えずに学習対象を増やす。
+        if len(ids) > model.max_seq_len + 1:
+            start = random.randint(0, len(ids) - (model.max_seq_len + 1))
+            ids = ids[start : start + model.max_seq_len + 1]
+
+        x = ids[:-1]
+        y = ids[1:]
+
+        inputs = torch.tensor([x], dtype=torch.long)
+        targets = torch.tensor([y], dtype=torch.long)
 
         optimizer.zero_grad(set_to_none=True)
         logits = model(inputs)
-        loss = F.cross_entropy(logits.view(-1, logits.shape[-1]), targets.view(-1))
+        loss = loss_fn(logits.view(-1, logits.shape[-1]), targets.view(-1))
         loss.backward()
         optimizer.step()
 
@@ -186,10 +234,16 @@ def main() -> None:
         help="Path to the shared vocabulary JSON file.",
     )
     parser.add_argument(
+        "--corpus",
+        type=Path,
+        default=repo_root / "model_tools" / "training_corpus.txt",
+        help="Path to the UTF-8 training corpus text file.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=repo_root / "app" / "src" / "main" / "assets" / "mini_transformer_weights.json",
-        help="Where to write the exported Android weight file.",
+        help="Where to write mini_transformer_weights.json.",
     )
     parser.add_argument("--seed", type=int, default=7, help="Random seed for deterministic output.")
     parser.add_argument("--d-model", type=int, default=32, help="Embedding dimension.")
@@ -203,8 +257,17 @@ def main() -> None:
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    vocab = load_vocab(args.vocab)
-    token_to_id = {token: index for index, token in enumerate(vocab)}
+    vocab, stoi, itos = load_vocab(args.vocab)
+    if len(stoi) != len(vocab) or len(itos) != len(vocab):
+        raise ValueError("Vocabulary contains duplicate entries.")
+
+    required_tokens = ("[PAD]", "[BOS]", "[EOS]", "[UNK]")
+    missing_tokens = [token for token in required_tokens if token not in stoi]
+    if missing_tokens:
+        raise ValueError(f"Vocabulary is missing required tokens: {missing_tokens}")
+
+    corpus_lines = load_training_corpus(args.corpus)
+
     model = MiniTransformer(
         vocab_size=len(vocab),
         d_model=args.d_model,
@@ -213,19 +276,11 @@ def main() -> None:
         num_layers=args.num_layers,
     )
 
-    corpus = (
-        "attention on android.\n"
-        "tiny models make internals visible.\n"
-        "embeddings, logits, and heatmaps help learning.\n"
-    )
-    dataset, _ = build_dataset(vocab, corpus, args.max_seq_len)
     train_model(
         model=model,
-        dataset=dataset,
-        bos_id=token_to_id["[BOS]"],
-        eos_id=token_to_id["[EOS]"],
+        corpus_lines=corpus_lines,
+        stoi=stoi,
         steps=args.train_steps,
-        max_seq_len=args.max_seq_len,
         lr=args.learning_rate,
     )
 

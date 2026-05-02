@@ -4,38 +4,41 @@ hi [EOS]
 [BOS] hi
 hello [EOS]
 
+[BOS] hey
+hi [EOS]
+
+[BOS] yo
+hey [EOS]
+
+[BOS] good morning
+good morning [EOS]
+
+[BOS] good afternoon
+good afternoon [EOS]
+
+[BOS] good evening
+good evening [EOS]
+
 [BOS] how are you
 fine [EOS]
 
 [BOS] how are you
 i am fine [EOS]
 
-[BOS] good morning
-good morning [EOS]
+[BOS] how are you
+good [EOS]
 
-[BOS] good night
-good night [EOS]
+[BOS] how are you doing
+i am fine [EOS]
 
-[BOS] thank you
-you are welcome [EOS]
+[BOS] how's it going
+good [EOS]
 
-[BOS] thanks
-you are welcome [EOS]
-
-[BOS] bye
-see you [EOS]
-
-[BOS] see you
-bye [EOS]
-
-[BOS] good evening
-good evening [EOS]
+[BOS] how's everything
+good [EOS]
 
 [BOS] what's up
 not much [EOS]
-
-[BOS] how is it going
-good [EOS]
 
 [BOS] how do you do
 i am fine [EOS]
@@ -46,11 +49,32 @@ nice to meet you too [EOS]
 [BOS] long time no see
 long time no see [EOS]
 
-[BOS] welcome
-thank you [EOS]
+[BOS] thank you
+you are welcome [EOS]
+
+[BOS] thanks
+you are welcome [EOS]
+
+[BOS] thank you so much
+no problem [EOS]
+
+[BOS] thanks a lot
+no worries [EOS]
 
 [BOS] sorry
 no problem [EOS]
 
 [BOS] excuse me
 yes [EOS]
+
+[BOS] bye
+see you [EOS]
+
+[BOS] see you
+bye [EOS]
+
+[BOS] take care
+you too [EOS]
+
+[BOS] welcome
+thank you [EOS]

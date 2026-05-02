@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate a tiny decoder-only Transformer whose weights match the Kotlin
-MiniTransformer implementation used by the Android demo.
+Generate a tiny decoder-only Transformer that learns greeting patterns from an
+external UTF-8 corpus.
 
-The exported JSON is intentionally simple:
+The exported JSON matches the Kotlin MiniTransformer implementation used by the
+Android demo:
 1. config: model hyperparameters
 2. embedding: token embedding table
 3. layers: transposed linear weights plus LayerNorm parameters
@@ -32,13 +33,20 @@ def load_vocab(path: Path) -> tuple[list[str], dict[str, int], dict[int, str]]:
 
 
 def load_training_corpus(path: Path) -> list[str]:
-    """Load UTF-8 text and skip blank lines so separators can be left in the file."""
+    """
+    Load UTF-8 greeting examples from disk.
+
+    Empty lines are ignored so the corpus can stay readable, and comment lines
+    that start with "#" are also skipped because the repository corpus uses
+    section headers for humans.
+    """
     lines: list[str] = []
     with path.open("r", encoding="utf-8") as corpus_file:
         for raw_line in corpus_file:
             line = raw_line.strip()
-            if line:
-                lines.append(line)
+            if not line or line.startswith("#"):
+                continue
+            lines.append(line)
     if not lines:
         raise ValueError(f"Training corpus is empty: {path}")
     return lines
@@ -156,18 +164,20 @@ def train_model(
     model.train()
 
     for step in range(steps):
-        # ランダムに別の行を引くことで、短いコーパスでも見える並びが毎回少し変わり、
-        # 挨拶パターンを反復して学習しやすくする。
+        # 挨拶コーパスから毎回 1 行をランダムに選び、短いデータでも同じ
+        # やり取りを何度も見せて応答パターンを覚えやすくする。
         line = random.choice(corpus_lines)
         ids = encode(line, stoi)
         if len(ids) < 2:
             raise ValueError(f"Training line must contain at least 2 tokens: {line!r}")
 
-        # 既存のモデル長を超える行はランダム窓で切り出し、構造を変えずに学習対象を増やす。
+        # 長い文はランダムな連続区間に切り出し、既存の小さなモデル構造のまま
+        # 次トークン予測として学習できるようにする。
         if len(ids) > model.max_seq_len + 1:
             start = random.randint(0, len(ids) - (model.max_seq_len + 1))
             ids = ids[start : start + model.max_seq_len + 1]
 
+        # 文字レベル LLM の基本形: 1 文字先を当てるように学習する。
         x = ids[:-1]
         y = ids[1:]
 
@@ -225,7 +235,9 @@ def export_weights(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate educational Transformer weights")
+    parser = argparse.ArgumentParser(
+        description="Generate greeting-focused Transformer weights"
+    )
     repo_root = Path(__file__).resolve().parents[1]
     parser.add_argument(
         "--vocab",
@@ -250,7 +262,12 @@ def main() -> None:
     parser.add_argument("--num-layers", type=int, default=1, help="Number of decoder layers.")
     parser.add_argument("--max-seq-len", type=int, default=24, help="Maximum sequence length.")
     parser.add_argument("--ff-hidden-dim", type=int, default=64, help="Feed-forward hidden dimension.")
-    parser.add_argument("--train-steps", type=int, default=200, help="Toy next-token training steps.")
+    parser.add_argument(
+        "--train-steps",
+        type=int,
+        default=2000,
+        help="Next-token training steps for the greeting corpus.",
+    )
     parser.add_argument("--learning-rate", type=float, default=3e-3, help="AdamW learning rate.")
     args = parser.parse_args()
 

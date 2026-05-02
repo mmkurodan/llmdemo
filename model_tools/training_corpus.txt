@@ -1,3 +1,4 @@
+# --- Basic greetings ---
 [BOS] hello
 hi [EOS]
 
@@ -19,6 +20,7 @@ good afternoon [EOS]
 [BOS] good evening
 good evening [EOS]
 
+# --- How are you variations (強化学習) ---
 [BOS] how are you
 fine [EOS]
 
@@ -28,8 +30,17 @@ i am fine [EOS]
 [BOS] how are you
 good [EOS]
 
+[BOS] how are you
+fine [EOS]
+
+[BOS] how are you
+fine [EOS]
+
 [BOS] how are you doing
 i am fine [EOS]
+
+[BOS] how are you doing
+good [EOS]
 
 [BOS] how's it going
 good [EOS]
@@ -43,11 +54,9 @@ not much [EOS]
 [BOS] how do you do
 i am fine [EOS]
 
-[BOS] nice to meet you
-nice to meet you too [EOS]
-
-[BOS] long time no see
-long time no see [EOS]
+# --- Thanks variations (強化学習) ---
+[BOS] thank you
+you are welcome [EOS]
 
 [BOS] thank you
 you are welcome [EOS]
@@ -61,12 +70,10 @@ no problem [EOS]
 [BOS] thanks a lot
 no worries [EOS]
 
-[BOS] sorry
+[BOS] thank you very much
 no problem [EOS]
 
-[BOS] excuse me
-yes [EOS]
-
+# --- Farewell ---
 [BOS] bye
 see you [EOS]
 
@@ -76,5 +83,71 @@ bye [EOS]
 [BOS] take care
 you too [EOS]
 
+[BOS] see you later
+bye [EOS]
+
+[BOS] see you soon
+bye [EOS]
+
+# --- Polite expressions ---
+[BOS] sorry
+no problem [EOS]
+
+[BOS] excuse me
+yes [EOS]
+
 [BOS] welcome
 thank you [EOS]
+
+[BOS] nice to meet you
+nice to meet you too [EOS]
+
+[BOS] long time no see
+long time no see [EOS]
+
+# --- Extra greetings for robustness ---
+[BOS] hi there
+hello [EOS]
+
+[BOS] hello there
+hi [EOS]
+
+[BOS] good to see you
+good to see you too [EOS]
+
+[BOS] how have you been
+good [EOS]
+
+[BOS] how have you been
+i am fine [EOS]
+
+[BOS] how is everything
+good [EOS]
+
+[BOS] how is your day
+good [EOS]
+
+[BOS] how is your morning
+good [EOS]
+
+[BOS] how is your evening
+good [EOS]
+
+# --- Reinforcement block (最重要ペアを強化) ---
+[BOS] how are you
+fine [EOS]
+
+[BOS] how are you
+fine [EOS]
+
+[BOS] thank you
+you are welcome [EOS]
+
+[BOS] thank you
+you are welcome [EOS]
+
+[BOS] hi
+hello [EOS]
+
+[BOS] hi
+hello [EOS]
